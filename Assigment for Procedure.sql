@@ -16,11 +16,9 @@ SELECT sum(amount) AS 'TOTAL PAYMENT' FROM PAYMENT WHERE CUSTOMER_ID = ID;
 END$$
 DELIMITER ;
 
-CALL Total_Payment(3);
+CALL Total_Payment(5);
 
 -- (3) Write a stored procedure to insert a new city into the city table (World DB) --
-DESCRIBE CITY;
-
 DELIMITER $$
 CREATE PROCEDURE InCityCodeDist (IN City_Name VARCHAR(40),IN CODE CHAR(3),IN District CHAR(20))
 BEGIN
@@ -34,6 +32,7 @@ CALL InCityCodeDist ('Vadodara','IND','Vadodara');
 SELECT * FROM CITY WHERE Name = 'Vadodara' OR Name = 'Anand';
 
 -- (4) Create a procedure that shows the top 5 most rented films (Sakila) --
+
 
 
 -- (5) Write a procedure that returns the total number of countries per continent (World) --
@@ -58,7 +57,15 @@ SET @FilmRating = "R";
 CALL FilmByRating (@FilmRating);
 
 -- (7) Write a procedure with IN and OUT parameters: input is country_code, output is population (World) --
+DELIMITER $$
+CREATE PROCEDURE CodeToPopulation (IN Code CHAR(3),OUT Total_Population INT)
+BEGIN
+SELECT sum(Population) INTO Total_Population FROM city WHERE countrycode = Code;
+END$$
+DELIMITER ;
 
+CALL CodeTopopulation ("AFG",@Population);
+SELECT @Population AS "Total Population";
 
 -- (8) Create a procedure that accepts a min and max replacement cost and lists films in that range (Sakila) --
 DELIMITER $$
@@ -104,7 +111,199 @@ DELIMITER ;
 CALL AvgLifeContinent ('Europe');
 
 -- (11) Write a procedure to categorize films as Short (<60 mins), Medium (60–120 mins), or Long (>120 mins) --
+DELIMITER $$
+CREATE PROCEDURE FilmLength ()
+BEGIN
+SELECT Title,Release_Year,Length,
+	CASE 
+	WHEN length < 60 THEN "Short"
+    WHEN length BETWEEN 60 AND 120 THEN "Medium"
+    WHEN length >120 THEN "Long" 
+END AS 'Film Category'
+FROM film;
+END $$
+DELIMITER ;
+
+CALL FilmLength();
 
 
+-- (12) Create a procedure that uses a LOOP to print numbers 1–10 -- Stored in World DB --
+CREATE TEMPORARY TABLE IF NOT EXISTS PrintNumbers (
+NUMBERS INT 
+);
+
+DELIMITER $$
+CREATE PROCEDURE Numbers_2 (IN Startnum INT, IN EndNum INT)
+BEGIN
+TRUNCATE TABLE Printnumbers;
+Num_Loop : LOOP
+	IF StartNum >Endnum THEN
+    Leave Num_Loop;
+    END IF;
+    INSERT INTO PrintNumbers (Numbers) VALUES (Startnum);
+    SET StartNum = StartNum + 1;
+    END Loop;
+SELECT * FROM Printnumbers;
+END$$
+DELIMITER ;        
+        
+CALL Numbers_2(1,10);
+
+DELIMITER $$
+CREATE PROCEDURE Numbers ()
+BEGIN
+DECLARE StartNum INT DEFAULT 1;
+	While StartNum <=10 DO
+    SELECT StartNum AS Numbers;
+    SET StartNum = StartNum + 1;
+    END WHILE ;
+END$$
+DELIMITER ;
+
+CALL Numbers();
+
+
+-- (13) Write a procedure that checks if a given customer_id exists in the customer table and returns "Found" or "Not Found" --
+SELECT * FROM CUSTOMER;
+
+DELIMITER $$
+CREATE PROCEDURE CheckID (IN ID INT)
+BEGIN
+DECLARE ID_CHECK INT;
+SELECT count(customer_id) INTO ID_CHECK FROM customer WHERE customer_id = ID;
+IF ID_CHECK != 0 THEN SELECT "FOUND";
+ELSE SELECT "NOT FOUND";
+END IF;
+END$$
+DELIMITER ;
+
+CALL CheckID(700);
+SELECT * FROM CUSTOMER;
+
+DELIMITER $$
+CREATE PROCEDURE CHECKID_2 (IN ID INT)
+BEGIN 
+DECLARE Temp_ID INT;
+DECLARE ID_Check INT DEFAULT 1;
+DECLARE FIND CURSOR FOR SELECT Customer_ID FROM CUSTOMER WHERE Customer_ID = ID;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET ID_CHECK = 0;
+OPEN FIND;
+FETCH FIND INTO TEMP_ID;
+IF ID_CHECK=0 THEN SELECT "NOT FOUND";
+ELSE SELECT "FOUND";
+END IF ;
+CLOSE FIND;
+END$$
+DELIMITER ;
+
+CALL CheckID_2(700);
+
+-- (14) Create a procedure that updates rental_rate by 10% for all films above 120 minutes --
+SELECT title,length,rental_rate FROM FILM WHERE Length >= 120;
+DESCRIBE FILM;
+SELECT * FROM film;
+
+DELIMITER $$
+CREATE PROCEDURE Rental_Rate_10 ()
+BEGIN
+DECLARE MovieID INT;
+DECLARE FilmLength INT;
+DECLARE RentalRate Decimal(4,2);
+DECLARE RATE_CHECK INT DEFAULT 0;
+DECLARE Cursor1 Cursor for SELECT Film_ID,Length,Rental_Rate FROM FILM;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET RATE_CHECK = 1;
+OPEN Cursor1;
+ADD_10_Rent : LOOP
+FETCH Cursor1 INTO MovieID,FilmLength,RentalRate;
+IF RATE_CHECK=1 THEN
+	LEAVE ADD_10_Rent;
+END IF;
+IF FilmLength > 120 THEN
+	UPDATE Film
+	SET Rental_Rate = RentalRate * 1.10
+    WHERE Film_ID=MovieID;
+END IF;
+END LOOP;
+CLOSE Cursor1;
+END$$
+DELIMITER ;
+
+CALL Rental_Rate_10 ();
+
+SELECT title,length,rental_rate FROM FILM WHERE Length >= 120;
+
+-- (15) Write a procedure that finds the first 5 cities alphabetically in the World database using a loop --
+SELECT * FROM city ORDER BY NAME LIMIT 5;
+DESCRIBE CITy;
+
+DELIMITER $$
+CREATE PROCEDURE FiveCity ()
+
+
+-- (16) Write a procedure using a cursor to display all film titles one by one (Sakila) --
+CREATE TEMPORARY TABLE IF NOT EXISTS FilmName (
+Film_Title VARCHAR(255)
+);
+
+DELIMITER $$
+CREATE PROCEDURE FilmTitles()
+BEGIN
+DECLARE FilmTitle VARCHAR(255);
+DECLARE Done INT DEFAULT 0;
+DECLARE Cursor1 CURSOR FOR SELECT Title FROM Film;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET Done = 1;
+TRUNCATE TABLE FilmName;
+OPEN Cursor1;
+    TitleLoop: LOOP
+	FETCH Cursor1 INTO FilmTitle;
+	IF Done = 1 THEN
+	LEAVE TitleLoop;
+	END IF;
+INSERT INTO FilmName VALUES (FilmTitle);
+    END LOOP TitleLoop;
+CLOSE Cursor1;
+SELECT * FROM FilmName;
+END$$
+DELIMITER ;
+
+CALL FilmTitles ();
+
+-- (17) Create a procedure that uses a cursor to calculate the total population of all countries (World) --
+SELECT * FROM Country;
+
+DELIMITER $$
+CREATE PROCEDURE TotalPopulation ()
+BEGIN
+DECLARE PopulationValue INT;
+DECLARE TotalPopulation BIGINT DEFAULT 0;
+DECLARE DONE INT DEFAULT 0;
+DECLARE PopCounter CURSOR FOR SELECT Population FROM Country;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET DONE = 1;
+OPEN PopCounter;
+	PopulationLoop : LOOP
+FETCH PopCounter INTO PopulationValue;
+    	IF DONE = 1 THEN 
+		Leave PopulationLoop;
+        END IF;
+    SET TotalPopulation = TotalPopulation + PopulationValue; 
+    END LOOP PopulationLoop;
+CLOSE PopCounter;
+SELECT TotalPopulation AS 'Total Population';
+END$$
+DELIMITER ;
+
+CALL TotalPopulation();
+
+
+
+-- (18) Write a procedure that performs a transaction: deduct amount from one customer’s balance and add it to another --
+
+-- (19) Write a procedure that handles an error (e.g., dividing by zero) using DECLARE HANDLER --
+
+-- (20) Create a procedure that generates a log entry whenever a new customer is inserted (simulate error logging) -- 
+
+
+    
+    
 
 
