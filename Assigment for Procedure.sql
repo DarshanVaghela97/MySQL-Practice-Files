@@ -32,8 +32,19 @@ CALL InCityCodeDist ('Vadodara','IND','Vadodara');
 SELECT * FROM CITY WHERE Name = 'Vadodara' OR Name = 'Anand';
 
 -- (4) Create a procedure that shows the top 5 most rented films (Sakila) --
+DELIMITER $$
+CREATE PROCEDURE Top5Rented()
+BEGIN
+SELECT f.film_id,f.title,count(r.rental_id) AS Times_Rented FROM Film AS f 
+JOIN Inventory AS i ON f.film_id = i.film_id 
+JOIN Rental AS r ON i.inventory_id = r.inventory_id
+GROUP BY f.film_id, f.title 
+ORDER BY Times_Rented DESC
+LIMIT 5;
+END$$
+DELIMITER ;
 
-
+CALL Top5Rented ();
 
 -- (5) Write a procedure that returns the total number of countries per continent (World) --
 DELIMITER $$
@@ -294,16 +305,79 @@ DELIMITER ;
 
 CALL TotalPopulation();
 
-
-
 -- (18) Write a procedure that performs a transaction: deduct amount from one customer’s balance and add it to another --
+CREATE TABLE ACCOUNTS (
+CUSTOMER_ID INT PRIMARY KEY,
+BALANCE DECIMAL(10,2)
+);
+
+INSERT INTO ACCOUNTS (CUSTOMER_ID,BALANCE) VALUES 
+(1,1000.00),
+(2,500.00);
+
+DELIMITER $$
+CREATE PROCEDURE TransferBalance (IN From_ID INT, IN To_ID INT, IN TransferAmount DECIMAL(10,2))
+BEGIN
+DECLARE CurrentBalance DECIMAL(10,2); 
+	START TRANSACTION;
+        SELECT BALANCE INTO CURRENTBALANCE FROM ACCOUNTS WHERE CUSTOMER_ID = FROM_ID;
+	IF CURRENTBALANCE >=TransferAmount THEN
+		UPDATE ACCOUNTS SET BALANCE = BALANCE - TransferAmount WHERE CUSTOMER_ID = FROM_ID;
+		UPDATE ACCOUNTS SET BALANCE = BALANCE + TransferAmount WHERE CUSTOMER_ID = TO_ID;
+        COMMIT;
+		ELSE
+	ROLLBACK;
+	SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient Balance';
+	END IF;
+SELECT * FROM ACCOUNTS;
+END$$
+DELIMITER ; 
+
+CALL TRANSFERBALANCE(1,2,400);
 
 -- (19) Write a procedure that handles an error (e.g., dividing by zero) using DECLARE HANDLER --
+DELIMITER $$
+CREATE PROCEDURE DIVIDENUMBERS (IN NUM1 DECIMAL(10,2), IN NUM2 DECIMAL(10,2), OUT RESULT DECIMAL(10,2))
+BEGIN
+DECLARE DIVIDE_BY_ZERO CONDITION FOR SQLSTATE '22012';
+DECLARE CONTINUE HANDLER FOR DIVIDE_BY_ZERO
+BEGIN 
+SET RESULT = NULL;
+SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Division by Zero is not allowed';
+END;
+IF NUM2 = 0 THEN
+SIGNAL SQLSTATE '22012' SET MESSAGE_TEXT = 'Division by Zero';
+ELSE 
+SET RESULT = NUM1 / NUM2;
+END IF;
+END$$
+DELIMITER ;
+
+CALL DIVIDENUMBERS(10,0,@RESULT);
+SELECT @RESULT;
 
 -- (20) Create a procedure that generates a log entry whenever a new customer is inserted (simulate error logging) -- 
 
-
+DELIMITER $$
+CREATE PROCEDURE InsertCustomer (
+IN C_ID INT,
+IN C_FirstName VARCHAR(45),
+IN C_LastName VARCHAR(45)
+)
+BEGIN
+DECLARE DUPLICATE_ID CONDITION FOR SQLSTATE '45000';
+DECLARE CONTINUE HANDLER FOR DUPLICATE_ID
+BEGIN
+	SELECT C_ID AS Customer_ID,
+	'Customer ID already exists' AS Log_Message;
+END;
+	IF C_ID IN (SELECT Customer_ID FROM Customer) THEN SIGNAL SQLSTATE '45000'
+	SET MESSAGE_TEXT = 'Customer ID already exists';
+ELSE
+	INSERT INTO Customer (Customer_ID, First_Name, Last_Name)
+	VALUES
+	(C_ID, C_FirstName, C_LastName);
+END IF;
+END$$
+DELIMITER ;
     
-    
-
-
