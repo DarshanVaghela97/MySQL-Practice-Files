@@ -49,6 +49,7 @@ M- December
 y- 25
 Y- 2025
 */
+SELECT * FROM SALES1;
 
 SELECT STR_TO_DATE(ORDER_DATE,'%m/%d/%Y') FROM SALES1;
 

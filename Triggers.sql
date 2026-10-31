@@ -1,0 +1,350 @@
+CREATE DATABASE `TRIGGERS`;
+USE `TRIGGERS`;
+
+CREATE TABLE COURSE2(
+COURSE_ID INT,
+COURSE_DESC VARCHAR(50),
+COURSE_MENTOR VARCHAR(60),
+COURSE_PRICE INT,
+COURSE_DISCOUNT INT,
+CREATE_DATE DATE,
+USER_INFO VARCHAR(50));
+
+CREATE TABLE REF_COURSE(
+RECORD_INSERT_DATE DATE,
+RECORD_INSERT_USER VARCHAR(50)
+);
+
+DELIMITER //
+CREATE TRIGGER COURSE_BEFORE_INSERT
+BEFORE INSERT ON COURSE2 FOR EACH ROW
+BEGIN
+	DECLARE USER_VAL VARCHAR(50);
+	SET NEW.CREATE_DATE = SYSDATE();
+	SELECT USER() INTO USER_VAL;
+	SET NEW.USER_INFO = USER_VAL;
+	INSERT INTO REF_COURSE VALUES(SYSDATE() , USER_VAL);
+END; //
+DELIMITER ;
+
+INSERT INTO COURSE2 (COURSE_ID,COURSE_DESC,COURSE_MENTOR,COURSE_PRICE,COURSE_DISCOUNT)
+VALUE(101, "FSDS", "HARSHITA", 15000, 15);
+
+SELECT * FROM COURSE2;
+SELECT * FROM REF_COURSE;
+
+CREATE TABLE TEST1(
+C1 VARCHAR(50),
+C2 DATE,
+C3 INT);
+
+CREATE TABLE TEST2(
+C1 VARCHAR(50),
+C2 DATE,
+C3 INT);
+
+CREATE TABLE TEST3(
+C1 VARCHAR(50),
+C2 DATE,
+C3 INT);
+
+DELIMITER //
+CREATE TRIGGER TO_UPDATE_OTHERS
+BEFORE INSERT ON TEST1 FOR EACH ROW
+BEGIN
+	INSERT INTO TEST2 VALUES("XYZ",sysdate(),23354);
+	INSERT INTO TEST3 VALUES("XYZ123",sysdate(),2366);
+END //
+DELIMITER ;
+
+INSERT INTO TEST1 (C1,C2,C3) VALUE("HARSHITA", sysdate(), 2000);
+
+SELECT * FROM TEST1;
+SELECT * FROM TEST2;
+SELECT * FROM TEST3;
+
+DELIMITER //
+CREATE TRIGGER TO_UPDATE_OTHERS_TABLE1
+AFTER INSERT ON TEST1 FOR EACH ROW
+BEGIN
+	UPDATE TEST2 
+    SET C1 = 'abc' WHERE C1 = 'xyz';
+	DELETE FROM TEST3 WHERE C1 = 'XYZ123';
+END //
+DELIMITER ;
+
+INSERT INTO TEST1 VALUES("Tirth",sysdate(),977897);
+
+SELECT * FROM TEST1;
+SELECT * FROM TEST2;
+SELECT * FROM TEST3;
+
+DELIMITER //
+CREATE TRIGGER TO_DELETE_OTHERS_TABLE
+AFTER DELETE ON TEST1 FOR EACH ROW
+BEGIN
+	INSERT INTO TEST3 VALUES("AFTER DELETE", SYSDATE(), 435457);
+END //
+DELIMITER ;
+
+SELECT * FROM TEST1;
+DELETE FROM TEST1 WHERE C1 = 'Tirth';
+SELECT * FROM TEST3;
+SELECT * FROM TEST1;
+
+DELIMITER //
+CREATE TRIGGER TO_DELETE_OTHER_BEFORE
+BEFORE DELETE ON TEST1 FOR EACH ROW
+BEGIN
+	INSERT INTO TEST3 VALUES("BEFORE DELETE", SYSDATE(), 435457);
+END //
+DELIMITER ;
+
+SELECT * FROM TEST1;
+
+DELETE FROM TEST1 WHERE C1 = 'HARSHITA';
+
+SELECT * FROM TEST3;
+
+DELIMITER //
+CREATE TRIGGER TO_DELETE_OTHERS_BEFORE_OBSERVATION4
+BEFORE DELETE ON TEST1 FOR EACH ROW
+BEGIN
+	INSERT INTO TEST3(C1,C2,C3) VALUES(OLD.C1, OLD.C2, OLD.C3);
+END //
+DELIMITER ;
+
+INSERT INTO TEST1 VALUES("HARSHITA",sysdate(),101010);
+
+DELETE FROM TEST1 WHERE C1 = 'HARSHITA';
+
+SELECT * FROM TEST3;
+
+DELIMITER //
+CREATE TRIGGER TO_UPDATE_OTHERS1
+AFTER UPDATE ON TEST1 FOR EACH ROW
+BEGIN
+	INSERT INTO TEST2(C1,C2,C3) VALUES(OLD.C1, OLD.C2, OLD.C3);
+END //
+DELIMITER ;
+
+INSERT INTO TEST1 VALUES("TIRTH",SYSDATE(),234354);
+
+UPDATE TEST1 SET C3 = 150000 WHERE C1 = "TIRTH";
+
+SELECT * FROM TEST1;
+SELECT * FROM TEST2;
+
+DELIMITER //
+CREATE TRIGGER TO_UPDATE_OTHERS1_BEFORE
+BEFORE UPDATE ON TEST1 FOR EACH ROW
+BEGIN
+	INSERT INTO TEST2(C1,C2,C3) VALUES(NEW.C1, NEW.C2, NEW.C3);
+END //
+DELIMITER ;
+
+UPDATE TEST1 SET C1 = "INSERT NEW" WHERE C1 = "TIRTH";
+
+SELECT * FROM TEST1;
+SELECT * FROM TEST2;
+
+CREATE TABLE Orders (
+	ORDERID INT PRIMARY KEY AUTO_INCREMENT,
+    CUSTOMERNAME VARCHAR(50) NOT NULL,
+    ORDERDATE DATE NOT NULL,
+    TOTALAMOUNT DECIMAL(10,2) NOT NULL
+    );
+    
+CREATE TABLE ORDERLOGS (
+	LOGID INT PRIMARY KEY AUTO_INCREMENT,
+    ORDERID INT,
+    LOGMESSAGE VARCHAR(255),
+    LOGDATE DATE,
+    LOGTIME TIME
+    );
+    
+DELIMITER //
+CREATE TRIGGER INSERTORDERLOG
+AFTER INSERT ON ORDERS FOR EACH ROW
+BEGIN 
+	INSERT INTO ORDERLOGS (ORDERID, LOGMESSAGE, LOGDATE, LOGTIME)
+    VALUES (NEW.ORDERID, CONCAT('NEW ORDER PLACED BY ', USER()), curdate(),current_time());
+    END;
+    //
+DELIMITER ;
+
+INSERT INTO ORDERS (CUSTOMERNAME, ORDERDATE, TOTALAMOUNT)
+VALUES ('TIRTH','2026-06-14',10000.00);
+
+SELECT * FROM ORDERS;
+SELECT * FROM ORDERLOGS;
+
+SELECT ORDERID,CUSTOMERNAME,ORDERDATE,TOTALAMOUNT FROM ORDERS WHERE ORDERDATE = '2026-06-14';
+
+CREATE TABLE employees (
+	employee_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    position VARCHAR(50),
+    salary DECIMAL(10,2),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+    
+CREATE TABLE employee_logs (
+	log_id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT,
+    old_salary DECIMAL(10,2),
+    new_salary DECIMAL(10,2),
+    change_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+DELIMITER //
+CREATE TRIGGER after_salary_update
+AFTER UPDATE ON employees FOR EACH ROW
+BEGIN
+	IF OLD.salary != NEW.Salary THEN
+		INSERT INTO employee_logs (Employee_id, old_salary, new_salary, change_time)
+		VALUES (Old.employee_id, Old.salary, NEW.salary, NOW());
+    END IF;
+END; //
+DELIMITER ;
+
+INSERT INTO EMPLOYEES (name, position, salary) VALUES ('Alice','Manager', 85000);
+
+SELECT * FROM employees;
+SELECT * FROM employee_logs;
+
+UPDATE employees
+SET salary = 90000
+WHERE employee_id = 1;
+
+CREATE TABLE products (
+	product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100),
+    price DECIMAL(10,2),
+    stock INT
+);
+
+CREATE TABLE Cust_Orders (
+	order_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    quantity INT,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE revenue (
+	revenue_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    total_revenue DECIMAL(15,2) DEFAULT 0
+);
+
+INSERT INTO products (product_name,price,stock)
+VALUES
+	('Laptop',1000.00,50),
+    ('Phone',500.00,100),
+    ('Headphones',150.00,200);
+    
+INSERT INTO revenue (product_id, total_revenue)
+VALUES
+	(1,0),
+    (2,0),
+    (3,0);
+    
+DELIMITER //
+CREATE TRIGGER after_order_insert
+AFTER INSERT ON cust_orders
+FOR EACH ROW
+BEGIN
+	UPDATE products
+    SET stock = stock - NEW.quantity
+    WHERE product_id = NEW.product_id;
+    
+    UPDATE revenue
+    SET total_revenue = total_revenue + (NEW.quantity * 
+		(SELECT price FROM products WHERE product_id = NEW.product_id))
+	WHERE product_id = NEW.product_id;
+    
+    IF (SELECT stock FROM products WHERE product_id = NEW.product_id) < 0 THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Stock cannot be negative.';
+    END IF;
+END //
+DELIMITER ;
+
+INSERT INTO Cust_orders (product_id,quantity) VALUES (2,10);
+
+SELECT * FROM products;
+SELECT * FROM revenue;
+SELECT * FROM Cust_orders;
+
+CREATE TABLE customers (
+	customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    classification ENUM('Regular','Gold','Premium') DEFAULT 'Regular',
+    total_spent DECIMAL(15,2) DEFAULT 0
+);
+
+CREATE TABLE ecom_orders (
+	order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    order_amount DECIMAL(15,2),
+    discount_applied DECIMAL(15,2),
+    final_amount DECIMAL(15,2),
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+INSERT INTO customers (name, classification, total_spent)
+VALUES 
+	('Alice','Regular',0),
+	('Bob','Regular',0),
+	('Charlie','Regular',0);
+    
+DELIMITER //
+CREATE TRIGGER before_order_insert
+BEFORE INSERT ON ecom_orders
+FOR EACH ROW
+BEGIN
+	DECLARE total_spending DECIMAL(15,2);
+    DECLARE classification VARCHAR(10);
+
+SELECT total_spent INTO total_spending FROM customers
+WHERE customer_id = NEW.customer_id;
+
+SET total_spending = total_spending + NEW.order_amount;
+
+IF total_spending > 10000 THEN
+	SET classification = 'Premium';
+ELSEIF total_spending BETWEEN 5000 AND 10000 THEN 
+	SET classification = 'Gold';
+ELSE
+	SET classification = 'Regular';
+END IF;
+
+UPDATE customers
+SET total_spent = total_spending,
+	classification = classification
+WHERE customer_id = NEW.customer_id;
+
+	IF classification = 'Premium' THEN
+		SET NEW.discount_applied = NEW.order_amount * 0.10;
+	ELSEIF classification = 'Gold' THEN
+		SET New.discount_applied = NEW.order_amount * 0.05;
+	ELSE 
+		SET NEW.discount_applied = 0;
+	END IF;
+    
+SET NEW.final_amount = NEW.order_amount - NEW.discount_applied;
+END //
+DELIMITER ;
+
+INSERT INTO ecom_orders (customer_id, order_amount) VALUES (1, 10000);
+INSERT INTO ecom_orders (customer_id, order_amount) VALUES (2,5000);
+INSERT INTO ecom_orders (customer_id, order_amount) VALUES (3,2000);
+
+INSERT INTO customers (name,classification, total_spent)
+VALUES ('Darshan','Regular',0);
+
+INSERT INTO ecom_orders (customer_id, order_amount) VALUES (4,5000);
+
+SELECT * FROM customers;
+SELECT * FROM ecom_orders;
